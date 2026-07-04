@@ -1,77 +1,145 @@
-# fnnas Zero2W — 飞牛 fnOS 定制镜像 for Orange Pi Zero2W
+# fnnas-zero2w
 
-面向 **Orange Pi Zero2W(全志 Allwinner H618)** 的飞牛 fnOS(fnnas)定制系统镜像。
-在官方 fnOS 基础上移植 6.18.18 内核 + 全外设支持,并**修复了若干官方自带 bug**,做到开箱可用、系统更新(OTA)可正常升级。
+**让飞牛 fnOS 完整跑在 Orange Pi Zero2W(全志 H618)上的定制镜像。**
+*An unofficial fnOS (fnnas) NAS image port for the Orange Pi Zero2W (Allwinner H618).*
 
-> ⚠️ 非官方个人移植项目,与飞牛官方无关。仅供学习与自用,自行承担风险。
+飞牛官方 ARM 公测版只支持 Orange Pi Zero3,**不支持 Zero2W**,而且 Zero3 基础镜像本身就带着不少毛病(无 HDMI、无 WiFi 驱动等)。本项目**以飞牛官方 ARM(支持 Zero3)为基础,一步步适配到 Zero2W**:先让它能启动、搞定 WiFi 与登录,再提取官方更新内核做**内核替换**修好 HDMI,逐个点亮外设、加状态灯,并修复若干官方自带 bug,最终产出可 OTA 升级的 **V2.5 稳定版**。
+
+> ⚠️ 个人移植项目,与飞牛官方无关。仅供学习与自用,自负风险。涉及的商标、固件、闭源应用版权归各自所有者。
 
 ---
 
-## 版本
+## 目录
 
-**V2.5**(本次发布) — 稳定修复版
+- [下载](#下载)
+- [外设支持](#外设支持)
+- [主要特性](#主要特性)
+- [安装](#安装)
+- [开发历程](#开发历程)
+- [技术实现](#技术实现)
+- [已修复的问题](#已修复的问题)
+- [致谢与免责](#致谢与免责)
+
+---
+
+## 下载
+
+镜像通过本仓库 **[Releases](../../releases)** 分发(单文件约 1.9GB,不放进 git)。
+
+**当前版本 V2.5** — 稳定版
 - 内核:`6.18.18.c798-trim`(arm64-sunxi,全外设 dtb)
-- 应用:fnOS `1.1.31`(首启后可一键 OTA 升级到最新)
-- 定位:低风险稳版,已验证 OTA / 存储池 / 改名 / web 全链路正常
+- 应用:fnOS `1.1.31`(首次开机后可在网页"系统更新"一键 OTA 升级到最新)
+- 已真机验证:OTA / 存储池首启自建 / 设备改名 / web / WiFi / HDMI / 音频 / 红外 / 按钮 全通
 
-镜像通过本仓库 **[Releases](../../releases)** 分发(单文件约 1.9GB,故不放在 git 里)。
-
----
-
-## 硬件支持情况
-
-| 功能 | 状态 |
-|---|---|
-| WiFi(展锐 uwe5622) | ✅ 驱动 + 固件已集成 |
-| HDMI 显示 | ✅ |
-| 红外接收 | ✅ |
-| 板载按键(lradc) | ✅ |
-| USB / USB-C 虚拟网卡 | ✅ |
-| Docker | ✅ |
-| 存储池(SD 自动建池挂载) | ✅ 首次开机自动创建 |
-| GPU 硬件加速 | ❌ mainline 无 panfrost renderD(H618 天花板) |
-| 有线网口 | ❌ H616 内部 EPHY 无 mainline 驱动 |
-
----
-
-## 修复的问题
-
-本版修复的问题详见 **[docs/BUGFIX-V2.5.md](docs/BUGFIX-V2.5.md)**,诚实分两类:
-
-**A 类 · 官方 fnOS 自带 bug**(官方镜像同样存在)
-- **nmbd.service 配置错误**(`Type=notify` 却用 `-D`)→ 每次改设备名卡约 90 秒、NetBIOS 广播失效。修复后 90s → 1s。
-- **nginx 在慢存储上开机死循环**(每次开机重解压 ~56MB 前端包超默认 90s 超时)→ web 起不来。加长启动超时打破循环。
-
-**B 类 · 移植适配相关修复**(因移植到 Zero2W / 嫁接内核而需要,非官方 bug)
-- OTA 内核包依赖修复(dummy linux-image 包)
-- 存储池首启自动创建逻辑
-- 设备名 / 主机名清理
-
----
-
-## 安装
-
-1. 下载 [Releases](../../releases) 里的 `fnnas_zero2w_V2.5.gz`。
-2. 用 [balenaEtcher](https://etcher.balena.io/) 或 `dd` 烧录到 microSD(≥8GB,建议用质量好的卡)。
-3. 插卡上电,等待首次开机(首启会自动建存储池,耗时约数分钟)。
-4. 浏览器访问 `http://<设备IP>:5666/`,按向导设置设备名、创建账号。
-5. 可在"系统更新"里一键升级到最新 fnOS。
-
-> 校验:下载后可比对 SHA256(见 Release 说明)。
-> 关机请用系统"关机"软关,勿直接断电(保护 btrfs 文件系统)。
-
----
-
-## 校验值
-
-`fnnas_zero2w_V2.5.gz`
 ```
+fnnas_zero2w_V2.5.gz
 SHA256: 74afb8398c6b4c6f7e6bbc27abf78cdb722ae2be38ed6f636aafa64d279fa0f8
 ```
 
 ---
 
-## 致谢 / 声明
+## 外设支持
 
-- 基于飞牛 fnOS、Orange Pi 官方 Ubuntu 镜像、Linux mainline、展锐 uwe5622 驱动源码等。
-- 商标与版权归各自所有者。本项目仅为个人移植适配,不含任何官方授权。
+| 外设 | 状态 | 说明 |
+|---|---|---|
+| WiFi(展锐 UWE5622) | ✅ | 为 6.18.18 重编的 out-of-tree 驱动 + 固件;开机自连,固定全球 MAC 防驱动清址 |
+| HDMI 显示 | ✅ | 6.18.18 原生 H616 显示驱动 + dtb 补 hdmi-connector;**需断电插好 HDMI 再上电**(无热插拔) |
+| SD 存储池 | ✅ | 首次开机自动创建(mdadm+LVM+btrfs),自动挂载 /vol1 |
+| USB-C 虚拟网卡 | ✅ | RNDIS,无网时应急通道 `http://10.42.0.1:5666`;有 WiFi/网线时自动关闭 |
+| 音频(3.5mm line-out) | ✅ | 拓展板 3.5mm;测试放音需 `apt install alsa-utils` |
+| 红外接收 | ✅ | rc0;遥控器非标准协议时可走 lirc 原始脉冲 |
+| 板载按键 KEY1/KEY2 | ✅ | lradc,`KEY_VOLUMEUP` / `KEY_VOLUMEDOWN` |
+| 状态 LED | ✅ | 用户态活跃度指示(越忙越慢闪);**不使用内核 heartbeat 触发器**(会崩内核) |
+| Docker | ✅ | 数据目录绑定到存储池 |
+| **有线百兆网口** | ❌ | H616 **内部 EPHY** 在 mainline 无驱动(`dwmac-sun8i` 无 h616 variant),dtb 解决不了 |
+| **GPU 硬件加速** | 🚧 | panfrost 因缺 `SUN50I_H6_PRCM_PPU` 电源域驱动而 `probe -110`;**已定位、非硬件天花板**,修复方向见下文技术实现 |
+
+---
+
+## 主要特性
+
+- **首启自动建存储池**:插卡即用,首次开机自动在 SD 剩余空间上建池并挂载,无需手动操作;残留旧卡也会先清后建。
+- **系统更新可用**:修复了官方 OTA 在本板"装不上"的问题,app 可在线 OTA 升级;内核走"离线自动完成"机制,规避 FAT32 `/boot` 无法建软链的官方缺陷。
+- **官方 bug 修复**:改名慢(nmbd)、开机 web 死循环(nginx)等,详见下文"已修复的问题"。
+- **干净安全**:无后门 SSH key、无预置 WiFi 凭据、无自定义主机名 hack(设备名走官方首启向导手填)。
+- **配套上位机**:Windows 下的"fnOS 连接"小工具可扫描局域网/异地组网里的飞牛设备并一键打开管理页。
+
+---
+
+## 安装
+
+1. 到 [Releases](../../releases) 下载 `fnnas_zero2w_V2.5.gz`,建议比对上面的 SHA256。
+2. 用 [balenaEtcher](https://etcher.balena.io/) 烧录到 microSD。
+   - **存储池需要空间**:飞牛吃整盘剩余空间做池子,**建议 ≥32GB 的好卡**;卡质量差易触发 SD 擦除超时。
+   - 复用旧卡建议先 `diskpart clean` / 格式化,清掉旧分区。
+3. 插卡上电,等待首次开机(会自动建池,约数分钟)。
+4. 浏览器打开 `http://<设备IP>:5666/`(无网时用 USB-C 连电脑,访问 `http://10.42.0.1:5666/`),按向导设置设备名、创建账号。
+5. 可在"系统更新"里升级到最新 fnOS。
+
+> **关机务必走系统"关机"软关,勿直接断电** —— 直接断电可能损坏 SD 上的 btrfs 文件系统。
+
+---
+
+## 开发历程
+
+本项目**不是从零做系统**,而是以飞牛官方 ARM 公测版(支持 Orange Pi Zero3)为基础,一步步适配到官方不支持的 Zero2W,并在过程中修掉大量基础镜像自带的问题。下面按时间顺序记录"到底改了什么、为什么"。
+
+> 参考:飞牛官方 ARM 公测与社区反馈见官方论坛 [club.fnnas.com](https://club.fnnas.com/)([ARM 公测帖](https://club.fnnas.com/forum.php?mod=viewthread&tid=55275)、[硬件兼容/BUG 反馈版块](https://club.fnnas.com/forum.php?mod=forumdisplay&fid=22))。Zero3 基础镜像的许多问题在社区亦有反馈。
+
+**起点:Zero3 基础镜像的一堆问题。** 飞牛官方 ARM 版只把 Orange Pi Zero3 列入支持,而且早期 Zero3 镜像本身就带着不少毛病(社区多有反馈,我们移植到 Zero2W 时也逐一撞上):没有 HDMI 显示(精简内核 6.18.6-trim 不带 H616 显示驱动,插屏黑屏)、没有 WiFi 驱动(展锐 UWE5622 缺失)、拓展板外设(红外/按钮/音频/网口)普遍点不亮、系统更新(OTA)装不上/半途卡死、SD 擦除超时 `mmc_erase -110`(H616 sunxi-mmc quirk),还有一个会随机 panic 内核的坑——设备树里状态灯用了 `heartbeat` 定时器触发器,在这套内核上会空指针崩溃、随机时刻必崩(早期把它误判成"随机死机/掉驱动/建存储失败"很久)。而 Zero2W 连"能启动"都不具备——硬件和 Zero3 不同,官方压根没有它的镜像。
+
+**阶段一:先让 Zero2W 能启动、能进管理页。** Zero3 的 u-boot 在 Zero2W 上会因 DRAM 初始化卡死,于是用 `orangepi_zero2w_defconfig` + `sun50i_h616` ATF BL31 **自编 Zero2W 专属 u-boot** 过启动第一关;再通过 USB-C OTG 做一个 **RNDIS 虚拟网卡**(configfs + 微软 OS 描述符 + 固定 MAC)作应急入口,电脑直连访问 `http://10.42.0.1:5666/` 建账号(后改成"有 WiFi/网线就自动关、无网才开"的条件切换)。至此能启动进飞牛、进网页,但外设仍是 Zero3 那副样子。
+
+**阶段二:搞定网卡(WiFi)与登录。** 移植并编译展锐 **UWE5622** SDIO 驱动,配合设备树让 SDIO 控制器探测到无线芯片、加载 CP2 固件后 `wlan0` 起来。这里有个 MAC 随机化坑:NetworkManager 默认给随机 MAC,而展锐 STA 模式**拒绝随机 MAC 并清成全 0** → 握手失败、误报"密码错误";修复是关闭扫描随机化 + 指定一个**全球管理 MAC**(首字节 bit1=0),驱动才不清址,之后 WiFi 全链路(关联→拿 IP→上外网)打通。登录方面:飞牛 ARM 公测版早期在部分场景有登录限制,理顺网络与账号后首启向导可正常建账号并登录。搞定"能联网 + 能登录",才有后面拿官方更新做内核替换的前提。
+
+**阶段三(转折点):提取更新版内核 + 内核替换 → HDMI 修复。** 早期试过"为了外设换成 Orange Pi BSP / 第三方内核",结果**飞牛应用层直接崩**(app 对平台有硬依赖)——教训是不能用外来内核替换飞牛内核。真正的突破是:登录账号后,飞牛官方 OTA 下发的新内核 `linux-image-6.18.18.c798-trim` 是 **arm64-sunxi(全志)包,解包里原生带 `sun50i-h618-orangepi-zero2w.dtb`**,说明官方新内核 6.18.18 本就支持 Zero2W。于是把基础镜像的 **6.18.6-trim 替换/升级为官方 6.18.18-sunxi**(仍是飞牛官方 `-trim` 血缘,app 不崩),一举拿到:**HDMI 修复**(6.18.18 原生带全套 H616 显示驱动,之前"永久放弃 HDMI"其实是 6.18.6 精简内核的锅、不是硬件问题)、**SD 擦除 `-110` 根治**(6.18.18 修掉了折磨全程的 sunxi-mmc 擦除 bug,dmesg 错误数归零,之前因它放弃的 OTA/存储方案随之盘活)。关键区分:换成外来 BSP 内核=失败(app 崩),升级到官方更新的 trim 内核 6.18.18=成功(同血缘升级)。
+
+**阶段四:逐个点亮外设 + 重编 WiFi。** 内核换到 6.18.18 后,靠改设备树(dtb)逐个点亮拓展板外设(纯改 dtb、基本零编译):HDMI(补 connector + disable 无面板 lcd)、红外、按钮 KEY1/KEY2(lradc)、音频(3.5mm)。因新内核不带展锐 out-of-tree 驱动,**为 6.18.18 重新编译 UWE5622**。技术细节见下文。(排线小坑:红外/按钮曾一起收不到信号,真因是拓展板 FPC 排线接触不良,重插即好,不是 dtb/驱动问题。)
+
+**阶段五:LED 状态灯(逻辑单独说明)。** 这是个"血泪教训 + 重新设计"。**第一,绝不用内核 heartbeat 触发器**:基础镜像 dtb 里状态灯用 `linux,default-trigger = "heartbeat"`,内核注册该 LED 就启用心跳定时器,回调在这套内核上会空指针(`__queue_work` wq=NULL)→ 随机时刻内核 panic,是早期"随机死机"的真凶;修复是 dtb 里 `default-trigger` 改 `none`,任何版本都禁用 heartbeat/timer 这类内核定时器触发器。**第二,改用用户态脚本驱动**(进程上下文,不碰内核定时器):开机早期在 systemd sysinit 阶段就把灯点成常亮(`default-on`)表示"系统活着",且与网络解耦——灯不随网络断开而灭,是"系统在运行"的可靠信号;就绪后做**活跃度指示(越忙越慢闪)**——脚本读 `/proc/stat` 算 CPU 占用映射到闪烁频率,空闲=最快(约 30Hz,近乎高频快闪)、满载=最慢(约 1Hz),实现上 `f = 30 − usage% × 29`,半周期 `0.5/f`,on/off 各 sleep。设计意图是高频快闪 = "系统没卡死"的直观证明(卡死了灯就不闪)、越忙越慢直观反映负载,代价是灯脚本占用约 10% CPU(权衡后保留——"看得见没卡死"值这个开销)。不用 PWM/内核 timer 做更精细的呼吸灯,正是因为 heartbeat 崩内核的教训:状态灯一律走用户态,稳定优先。
+
+**阶段六 + 终点:官方 bug 修复 → V2.5 定版。** 整合存储池自动化(autopool)、OTA 打通、官方 bug 修复(见下文两节),产出 **V2.5 稳定版**并真机验证:首启自动建池挂载、OTA 成功、WiFi/HDMI/音频/红外/按钮全通、改名秒生效、web 稳定、Docker 正常、20 项静态校验 × 3 遍全绿、无后门 key。整个历程由多轮真机 SSH/串口调试推进,期间推翻过多个悲观结论(HDMI"永久放弃"、mmc"硬件天花板"、GPU"只有 Armbian 能")——大多数"不可能"最终发现是精简内核或配置缺失所致。
+
+---
+
+## 技术实现
+
+**路线选择:保留飞牛内核血缘,而非替换成外来内核。** 替换成 Orange Pi BSP 内核会让飞牛 app 全崩(平台硬依赖);正确路线是用飞牛能接受的官方 `*-trim` 内核并逐个补外设,转机是官方 6.18.18-sunxi 内核原生带 Zero2W dtb,既保留飞牛血缘又拿到 H618 全套驱动。
+
+**WiFi:为 6.18.18 重编 UWE5622。** 编译期解决 6.18 API 变化(`MODULE_IMPORT_NS` 字符串化、cfg80211 回调签名 `change_beacon`/`set_wiphy_params`/`ch_switch_notify`、timer/wakeup_source/gpio 兼容层);运行期把 mainline 没有的 BSP vendor 符号全部 stub/替代(`sunxi_wlan_set_power` 改由 dtb `wifi-pwrseq`+regulator、`sunxi_wlan_get_bus_index`、`sunxi_mmc_rescan_card` 靠 dtb `non-removable` 自动探测 SDIO、`sched_setscheduler`→`sched_set_fifo`、`vfs_stat` 用 `kern_path`+`vfs_getattr` 自实现)。真机:两模块加载 → CP2 固件运行 → `wlan0` 出现。
+
+**设备树:逐外设点亮(纯改 dtb)。** HDMI——enable 显示链路 + **disable `lcd-controller@6511000`**(无面板,否则 DRM component master 组不齐)+ 给 hdmi 空 `port@1` 补 endpoint + 根节点加 `hdmi-connector` 并互连(对照 Armbian 工作 dtb 定位);WiFi SDIO——`non-removable` + `wifi-pwrseq`;红外——`ir@7040000` okay(PH10/IR_RX)+ modules-load `sunxi_cir`;按钮——`lradc@5070800` okay + `vref-supply`(1.8V)+ `button-500`(VOLUMEUP,0.5V)/`button-800`(VOLUMEDOWN,0.8V)+ modules-load `sun4i-lradc-keys`;音频——`codec@5096000` okay + `audio-routing`(3.5mm line-out 在拓展板);LED——`default-on` 常亮,严禁 heartbeat(见上文阶段五)。
+
+**存储池:autopool 首启自动建池。** 链条 `SD p3 → mdadm raid1(1盘) → LVM(VG trim_<uuid>, LV "0") → /dev/mapper/trim_<uuid>-0 (btrfs) → /vol1`。要点:`mkfs.btrfs -f -K`(不擦除,规避 SD 擦除超时);postgres `mount` 表登记一行(id 需显式给),飞牛据此开机自动挂载并显示"存储空间";数据分区固定 = rootfs(p2)+1 = p3;建池前灭残留超级块 + 停 md(防 udev 自动组装)+ `mdadm --create` 重试防 busy;建后 grow 链 `mdadm --grow`→`pvresize`→`lvextend`→`btrfs resize` 吃满整卡;首次开机用标记文件门控——首启无条件先删后建(清残留旧池),非首启只挂载已注册池、绝不误删用户数据。
+
+**系统更新(OTA):绕开 FAT32 软链官方 bug。** 官方 OTA 在本板"装不上"的唯一根因:内核包 postinst 要在 `/boot` 建 `vmlinuz`/`initrd.img` 软链,而 `/boot` 是 FAT32 不支持软链 → dpkg 半装 → 事务中止;而该软链根本不影响启动(u-boot 直接加载 `Image`+`uInitrd`+dtb)。处理:app 在线 OTA(登录账号授权后官方正常 `dpkg -i`,app 不碰 `/boot`);内核离线自动完成(systemd `path` unit 监控 `/var/lib/dpkg/status`,检测到内核包半装就自动 `update-initramfs` + 复制 Image/uInitrd/dtb 到 `/boot`,再把 dpkg 状态标为 installed,平时零常驻零轮询);依赖修复(内核是嫁接进来的、未 dpkg 注册 `linux-image-<ver>`,构建时造同版本空壳 deb `Provides: linux-image` 注册进 dpkg,满足 `linux-modules-trim` 依赖)。
+
+**GPU 现状:缺电源域驱动(可修,非硬件天花板)。** `panfrost` 已加载但 `probe -110`(deferred probe timeout),`/dev/dri` 只有 card0、无 renderD128。真因:GPU 节点(`allwinner,sun50i-h616-mali`/`arm,mali-bifrost`)声明了 `power-domains`,由 dtb 里 `power-controller@7010250`(`allwinner,sun50i-h616-prcm-ppu`)提供;但内核 `CONFIG_SUN50I_H6_PRCM_PPU` 未编译 → 电源域提供者永不注册 → panfrost 死等超时。这解释了"为什么只有 Armbian 能点亮 GPU"(它开了这个 config)——不是硬件天花板,是内核少编一个电源域驱动。修复方向:用板上现成 kernel headers out-of-tree 编该 PPU 驱动(或重编内核开启该 config)让它先于 panfrost 加载,次级依赖 clock/regulator 需实测。(注:firmware 更新里的 `mali_csffw.bin` 是 Valhall-CSF 架构 GPU 如 RK3588 G610 的固件,H618 的 Mali-G31 不使用,与本板无关。)
+
+**已知硬限制。** 有线百兆网口走 H616 内部 EPHY,mainline `dwmac-sun8i` 无 h616 internal-phy variant、`sun50i-h616.dtsi` 无内部 EPHY 节点,dtb 层面无解;SD 擦除超时(`mmc_erase -110`)是 H616 sunxi-mmc quirk,btrfs `discard=async` best-effort 可容忍,正常使用不受影响(勿禁 discard,会与 btrfs 冲突)。
+
+**构建。** 镜像在 Vagrant + VirtualBox 的 Ubuntu VM 内,用 `qemu-aarch64-static` chroot 进 arm64 rootfs 完成 dpkg 与文件叠加,再缩盘打包。
+
+---
+
+## 已修复的问题
+
+诚实分两类:**A 类 = 官方 fnOS 自带 bug**(官方镜像同样存在);**B 类 = 移植适配相关修复**(因移植/嫁接内核而需要,非官方 bug)。每条附真机实测证据。
+
+**A1(官方)nmbd.service 配置错误 → 每次改设备名卡 90 秒 + NetBIOS 广播失效。** 改名后端 `sysinfo_service` 会 `systemctl restart ... nmbd`;而 `nmbd.service` 是 `Type=notify` 却用 `ExecStart=/usr/sbin/nmbd -D`(`-D` fork 成守护、原进程退出 → systemd 收不到就绪 → 死等满 90s `TimeoutStartSec` → 杀 → failed;Debian 官方本应是 `--foreground`)。实测 `restart nmbd` = 90.7s 后 failed、nmbd 被杀后 137/138 无监听。修复:drop-in 把 `ExecStart` 改回 `--foreground`;修复后 `restart nmbd` = 0.77s、active,NetBIOS 恢复,**改名 90s→1s**。
+
+**A2(官方)nginx 在慢存储上开机死循环 → web(5666)起不来。** nginx 每次开机从 `www.zip`(约 56MB)解压前端到 rootfs,`trim_nginx.service` 未加长启动超时(默认 90s),慢存储上解压 >90s 被杀 → `Restart=always` 从头再解压 → 死循环。修复:drop-in `TimeoutStartSec=600`,让解压跑完打破循环。
+
+**B1(移植)系统更新因内核包依赖不满足中断。** 内核手动嫁接、未 dpkg 注册 `linux-image-<ver>` → OTA 装 `linux-modules-trim` 卡半装 → 事务中止。修复:构建时造同版本空壳 deb 注册依赖;修复后 OTA 全套装完、0 半装包、内核未动(不变砖)。
+
+**B2(移植)存储池首启自动创建 / 旧卡残留池撞车。** autopool 脚本自身逻辑(旧版按"最后分区+1"误建 p4、残留 md 被 udev 抢占致 busy),修复见上文技术实现;首启自动建池挂载、占用干净。
+
+**B3(移植,早期自引入已撤销)设备名下划线致主机名非法。** 曾把设备名烤成含下划线的 hostname 导致异常;修复:撤销所有自定义命名,hostname 保持默认,设备名回归官方首启向导手填。
+
+---
+
+## 致谢与免责
+
+**致谢**:飞牛 **fnOS / fnnas**(应用层官方 ARM 二进制)、**Orange Pi** 官方 Ubuntu BSP(内核/dtb/固件参考)、**Linux mainline** 与 **Armbian**(sunxi H616/H618 dtb 与外设参考)、展锐 **UWE5622** 驱动源码(Doct2O/orangepi-zero3-mainline-linux-wifi)。
+
+**免责**:本项目为个人对开源与第三方组件的移植适配,**不含任何官方授权**,不对使用后果负责。涉及的商标、固件、闭源应用版权均归其各自所有者;请在遵守相关许可的前提下使用。
