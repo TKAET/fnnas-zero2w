@@ -30,11 +30,12 @@
 - 内核:`6.18.18.c798-trim`(arm64-sunxi,全外设 dtb)
 - 应用:fnOS `1.1.31` —— **烧录后在网页"系统更新"里 OTA 升到最新**(已预埋禁 discard,升级不会触发 SD 擦除风暴)
 - 集齐:**拓展板双 USB-A 口点亮**(enable phy2/phy3 + `wifi-reload` 避开与 WiFi 的开机时序冲突 + 内核更新自动恢复 dtb 的钩子)、**HDMI 开机后热插拔**(走 EDID/HPD)、**SD 擦除风暴根治**(禁 discard 三道锁)、**HDMI EDID 自适应**(含 2.8 寸 480×640 小屏)、全外设
-- 已真机验证:**双口 USB(U盘/硬盘)+ WiFi 共存** / HDMI 热插拔 / 存储池首启自建 / web / 全外设
+- 🌟 **无视内核网卡驱动**(预装):内核 OTA 升级后,`/etc/kernel/postinst.d/` 钩子 + `trim-autoupdate` 自动为新内核**现场编译**展锐 WCN 驱动(`/opt/wifi-src` 带源码 + headers 到位即编)→ **WiFi 永不掉线**。根治"官方推新内核不带 WiFi 驱动、升级后网卡消失"的问题。
+- 已真机验证:**双口 USB(U盘/硬盘)+ WiFi 共存** / HDMI 热插拔 / 存储池首启自建 / web / 全外设 / **现编 ko 开机加载 wlan0 正常**
 
 ```
 fnnas_zero2w_V2.5.img.xz
-SHA256: dc3cf6f6c7cd1436038f02fa08ead621db420e5b4c604806e39c19f5391e08cb
+SHA256: fbe73bb78232b58ab083a2c8dd88ee88a62810b44d5ec82f2126d327f4496d8d
 ```
 
 > **版本说明**:**V2.5 为稳定版基准** —— 基于干净的 V2.5 基线重构,含双口 + 所有修复,镜像干净、xz 压缩约 1.5GB(解压后约 6.1GB)。另有 **V2.6.5 实验版**(app 预升到 1.1.3107 + libfix 等,但基于反复用过的系统、镜像较大约 2.3GB)仅作归档;一般用户用 V2.5 即可,烧完首启后自己 OTA 升 app。
